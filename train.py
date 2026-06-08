@@ -16,7 +16,7 @@ DEFAULT_CONFIG = {
     "epochs": 100,
     "batch": 16,
     "imgsz": 640,
-    "device": "0",
+    "device": "",
     "workers": 4,
     "lr0": 0.01,
     "patience": 50,

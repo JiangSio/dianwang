@@ -114,7 +114,7 @@ def parse_args():
                         help="输入图像尺寸")
     parser.add_argument("--batch", type=int, default=16,
                         help="batch size")
-    parser.add_argument("--device", type=str, default="0",
+    parser.add_argument("--device", type=str, default="",
                         help="设备 (0/cpu/0,1,2,3)")
 
     # 推理专用参数
