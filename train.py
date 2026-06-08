@@ -22,7 +22,7 @@ DEFAULT_CONFIG = {
     "patience": 50,
     "project": "runs/detect",
     "name": "train",
-    "optimizer": "auto",
+    "optimizer": "adamw",
     "close_mosaic": 10,
     "amp": True,
     "cache": False,
@@ -110,6 +110,8 @@ def parse_args():
                         help="初始学习率")
     parser.add_argument("--patience", type=int, default=DEFAULT_CONFIG["patience"],
                         help="早停轮数")
+    parser.add_argument("--optimizer", type=str, default=DEFAULT_CONFIG["optimizer"],
+                        help="优化器 (auto/adamw)")
     parser.add_argument("--project", type=str, default=DEFAULT_CONFIG["project"],
                         help="结果保存目录")
     parser.add_argument("--name", type=str, default=DEFAULT_CONFIG["name"],
