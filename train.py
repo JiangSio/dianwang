@@ -118,6 +118,10 @@ def parse_args():
                         help="实验名称")
     parser.add_argument("--close_mosaic", type=int, default=DEFAULT_CONFIG["close_mosaic"],
                         help="最后 N 轮关闭 mosaic 增强")
+    parser.add_argument("--amp", type=bool, default=DEFAULT_CONFIG["amp"],
+                        help="启用混合精度训练 (True/False)")
+    parser.add_argument("--cache", type=bool, default=DEFAULT_CONFIG["cache"],
+                        help="缓存图像到内存加速训练 (True/False)")
     return parser.parse_args()
 
 
