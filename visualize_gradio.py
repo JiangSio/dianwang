@@ -34,7 +34,7 @@ import numpy as np
 PROJECT = "luoshuan"
 DEFAULT_RESULTS_DIR = f"runs/detect/{PROJECT}/train"
 DEFAULT_PREDICT_DIR = f"runs/detect/{PROJECT}/infer"
-DEFAULT_GT_DIR = "法兰盘连接螺栓缺失"
+DEFAULT_GT_DIR = f"data/{PROJECT}/images/test"
 
 
 # ==================== 训练指标相关 ====================
