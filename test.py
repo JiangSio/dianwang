@@ -13,7 +13,7 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-PROJECT = "luoshuan"
+PROJECT = "kaikouxiao"
 
 # 类别颜色映射 (BGR 格式)
 CLASS_COLORS = {
