@@ -273,7 +273,7 @@ def create_app():
                     )
                     refresh_detect_btn = gr.Button("刷新", variant="primary")
 
-                detect_slider = gr.Slider(label="图片索引", minimum=0, maximum=0, value=0, step=1)
+                detect_slider = gr.Slider(label="图片索引", minimum=0, maximum=1, value=0, step=1)
                 detect_image = gr.Image(label="检测结果图片", type="filepath")
                 detect_status = gr.Textbox(label="状态", interactive=False)
 
