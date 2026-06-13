@@ -335,7 +335,7 @@ def create_app():
 
                 refresh_cmp_btn = gr.Button("加载对比数据", variant="primary")
 
-                cmp_slider = gr.Slider(label="图片索引", minimum=0, maximum=0, value=0, step=1)
+                cmp_slider = gr.Slider(label="图片索引", minimum=0, maximum=1, value=0, step=1)
                 cmp_status = gr.Textbox(label="状态", interactive=False)
 
                 with gr.Row():
