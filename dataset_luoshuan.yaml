@@ -2,9 +2,9 @@
 # 路径相对于项目根目录
 
 path: ./data/luoshuan
-train: images/train
-val: images/val
-test: images/test
+train: images/train_cut
+val: images/val_cut
+test: images/test_cut
 
 # 类别数量
 nc: 1

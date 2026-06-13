@@ -1,184 +1,152 @@
-# YOLOv8 目标检测训练与测试 Pipeline
+# 大图分片训练与推理方案
 
-## 数据概览
+## 问题分析
 
-| 项目 | 说明 |
-|------|------|
-| 数据格式 | VOC2007 XML + JPG |
-| 类别数 | 2 |
-| 类别名称 | `07010001`, `07010002` |
-| 图片总数 | 300 张 |
-| 标注方式 | 边界框 (bndbox: xmin, ymin, xmax, ymax) |
+luoshuan 数据集中图片尺寸过大，经过 YOLOv8 的 640x640 缩放后目标占比极小，模型无法有效学习。
+
+## 解决方案
+
+在数据集划分阶段，先划分原图到 train/val/test，再根据划分好的原图生成分片子图数据集。推理时对大图分片预测并还原坐标。
+
+### 关键设计
+
+1. **分片尺寸**: `TILE_SIZE = 1000`
+2. **重叠区域**: `OVERLAP = 200`
+3. **小图不分割**: 宽高都 <= 1000 的图片直接复制
+4. **convert_voc2yolo.py 不改动**，分片逻辑在 split 阶段完成
 
 ---
 
-## 项目目录结构
+## 执行计划
 
+### Phase 1: 数据集划分 + 分片（核心）
+
+**修改文件**: `split_dataset.py`
+
+**输出目录结构**:
 ```
-dianwang/
-├── plan.md                          # 本规划文档
-├── requirements.txt                 # Python 依赖
-├── convert_voc2yolo.py              # 1. VOC XML → YOLO TXT 格式转换脚本
-├── split_dataset.py                 # 2. 数据集划分脚本 (train/val/test)
-├── dataset.yaml                     # 3. YOLO 数据集配置文件
-├── train.py                         # 4. 训练脚本
-├── test.py                          # 5. 测试/推理脚本
-├── visualize_results.py             # 6. 结果可视化脚本
-├── data/                            # 数据处理后目录
-│   ├── images/
-│   │   ├── train/
-│   │   ├── val/
-│   │   └── test/
-│   └── labels/
-│       ├── train/
-│       ├── val/
-│       └── test/
-├── runs/                            # 训练输出目录
-│   └── detect/
-└── weights/                         # 预训练权重 & 最佳模型
-    └── best.pt
+data/luoshuan/
+├── images/
+│   ├── train/          # 原始图片（train集）
+│   ├── val/            # 原始图片（val集）
+│   ├── test/           # 原始图片（test集）
+│   ├── train_cut/      # 分片子图（train集）
+│   ├── val_cut/        # 分片子图（val集）
+│   └── test_cut/       # 分片子图（test集）
+├── labels/
+│   ├── train/          # 原始标注（train集）
+│   ├── val/            # 原始标注（val集）
+│   ├── test/           # 原始标注（test集）
+│   ├── train_cut/      # 子图标注（train集）
+│   ├── val_cut/        # 子图标注（val集）
+│   └── test_cut/       # 子图标注（test集）
+└── tile_offsets/
+    ├── train_cut.json  # train子图偏移信息
+    ├── val_cut.json    # val子图偏移信息
+    └── test_cut.json   # test子图偏移信息
 ```
 
----
+**流程**:
 
-## 组件规划
+1. 读取所有原始图片（`images/*.jpg`）和标注（`labels/*.txt`）
+2. 随机划分为 train/val/test（90%/5%/5%）
+3. 移动原始图片和标注到对应目录
+4. **对每个子集（train/val/test）分别执行分片**：
+   - 遍历该子集的原图（`images/{split}/*.jpg`）
+   - 读取对应标注（`labels/{split}/*.txt`）
+   - 判断是否需要分片（宽高 > 1000）
+   - 小图：直接复制到 `_cut` 目录，标注也复制，偏移(0,0)
+   - 大图：
+     - 计算切分网格（含重叠）
+     - 对每个子图：裁剪图片、筛选标注框（中心点在子图内）、转换相对坐标、保存
+     - 记录偏移信息到 `tile_offsets/{split}_cut.json`
 
-### 1. 格式转换 (`convert_voc2yolo.py`)
-
-**目标**: 将 VOC2007 XML 标注转换为 YOLO 格式 TXT 标注
-
-**输入**: 
-- 源目录: `挂点金具开口销缺失/*.xml` + `挂点金具开口销缺失/*.jpg`
-
-**输出**: 
-- `data/labels/` 下对应每个图片的 `.txt` 文件
-- 图片复制到 `data/images/`
-
-**YOLO 格式**: 每行 `class_id x_center y_center width height` (归一化到 [0,1])
-
-**关键逻辑**:
-- 解析 XML 提取 `<object>` 中的 `<name>` 和 `<bndbox>`
-- 类别映射: `{"07010001": 0, "07010002": 1}`
-- 坐标转换: `(xmin, ymin, xmax, ymax)` → `(x_center, y_center, w, h)` 归一化
-- 处理无标注图片 (生成空 txt)
-
----
-
-### 2. 数据集划分 (`split_dataset.py`)
-
-**目标**: 将数据集划分为 train / val / test
-
-**划分比例**: 
-- train: 70% (210 张)
-- val: 15% (45 张)
-- test: 15% (45 张)
-
-**策略**: 随机打乱后按比例划分，确保可复现 (固定 random seed)
-
----
-
-### 3. 依赖文件 (`requirements.txt`)
-
+**标注坐标转换**:
 ```
-ultralytics>=8.0.0
-torch>=2.0.0
-torchvision>=0.15.0
-opencv-python>=4.8.0
-numpy>=1.24.0
-matplotlib>=3.7.0
-pyyaml>=6.0
-tqdm>=4.65.0
+原YOLO坐标（相对于原图）→ 子图YOLO坐标（相对于子图）
+1. 反归一化得到原图绝对坐标: abs_x = yolo_x * orig_w
+2. 减去偏移得到子图绝对坐标: sub_x = abs_x - offset_x
+3. 重新归一化（相对于子图尺寸）: sub_yolo = sub_x / tile_w
+```
+
+**偏移信息格式** (`tile_offsets/train_cut.json`):
+```json
+{
+  "原图名_tile_0_0.jpg": {
+    "original": "原图名.jpg",
+    "offset_x": 0,
+    "offset_y": 0,
+    "tile_w": 1000,
+    "tile_h": 1000
+  }
+}
 ```
 
 ---
 
-### 4. YOLO 数据集配置 (`dataset.yaml`)
+### Phase 2: 训练
 
+**文件**: `train.py`（无需改动）
+
+训练时使用 `dataset_luoshuan.yaml`，修改其路径指向 `_cut` 数据：
 ```yaml
-path: ./data
-train: images/train
-val: images/val
-test: images/test
-
-nc: 2
-names:
-  0: "07010001"
-  1: "07010002"
+path: ./data/luoshuan
+train: images/train_cut
+val: images/val_cut
+test: images/test_cut
 ```
 
 ---
 
-### 5. 训练脚本 (`train.py`)
+### Phase 3: 推理 - 分片预测与坐标还原
 
-**功能**:
-- 加载 YOLOv8 预训练模型 (yolov8n.pt / yolov8s.pt)
-- 读取 `dataset.yaml` 配置
-- 执行训练，输出到 `runs/detect/`
-- 保存最佳权重到 `weights/best.pt`
+**修改文件**: `test.py`
 
-**关键参数**:
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| model | yolov8n.pt | 预训练模型 |
-| epochs | 100 | 训练轮数 |
-| batch | 16 | batch size |
-| imgsz | 640 | 输入图像尺寸 |
-| lr0 | 0.01 | 初始学习率 |
-| patience | 50 | 早停轮数 |
+**改动内容**:
 
----
+1. 新增分片配置和函数：
+   - `compute_tile_offsets()` - 分片偏移计算
+   - `nms()` - 非极大值抑制去重
+   - `tile_predict()` - 分片预测核心
+   - `draw_predictions_from_boxes()` - 从合并框列表绘制结果
 
-### 6. 测试脚本 (`test.py`)
+2. `tile_predict()` 逻辑：
+   - 小图（<=1000）：直接预测
+   - 大图：
+     - 按相同规则切分子图（重叠）
+     - 对每个子图调用模型预测
+     - 子图预测坐标 + 偏移量 = 原图坐标
+     - 按类别分别做 NMS 去重
 
-**功能**:
-- 加载训练好的模型权重
-- 在 test 集上评估 (mAP, precision, recall)
-- 支持单张图片/文件夹推理
-- 输出检测结果图
-
-**模式**:
-1. **评估模式**: 计算 test 集指标
-2. **推理模式**: 对指定图片/文件夹进行检测，保存结果图
+3. 修改 `infer()` 函数：调用 `tile_predict()` 替代直接预测
 
 ---
 
-### 7. 结果可视化 (`visualize_results.py`)
+## 文件变更清单
 
-**功能**:
-- 读取训练日志，绘制 loss/mAP 曲线
-- 展示测试集上的检测样例
-- 生成混淆矩阵 (如可用)
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `convert_voc2yolo.py` | 不改动 | 保持原样 |
+| `split_dataset.py` | 修改 | 新增分片逻辑，生成 _cut 子图数据集和偏移信息 |
+| `dataset_luoshuan.yaml` | 修改 | 路径指向 _cut 数据 |
+| `test.py` | 修改 | 新增分片推理和坐标还原 |
 
 ---
 
-## 执行流程
+## 实现顺序
 
-```bash
-# Step 0: 安装依赖
-pip install -r requirements.txt
-
-# Step 1: 格式转换 (VOC XML → YOLO TXT)
-python convert_voc2yolo.py
-
-# Step 2: 数据集划分
-python split_dataset.py
-
-# Step 3: 训练
-python train.py
-
-# Step 4: 测试
-python test.py --mode eval          # 评估模式
-python test.py --mode infer --source data/images/test  # 推理模式
-
-# Step 5: 可视化
-python visualize_results.py
-```
+1. 实现 `split_dataset.py` 的分片逻辑
+2. 修改 `dataset_luoshuan.yaml` 指向 _cut 数据
+3. 训练模型
+4. 实现 `test.py` 的分片推理逻辑
+5. 端到端测试验证
 
 ---
 
 ## 注意事项
 
-1. **类别名称**: 当前使用数字编码 `07010001`/`07010002`，如有语义名称可在 `dataset.yaml` 中修改 `names` 字段
-2. **GPU**: 训练需要 CUDA 环境，无 GPU 时自动使用 CPU (速度较慢)
-3. **数据增强**: YOLOv8 内置 Mosaic、MixUp、HSV 等增强，可在 `train.py` 中调整
-4. **模型选择**: 默认使用 yolov8n (nano)，可根据精度需求切换到 yolov8s/m/l/x
+1. **标注框筛选**: 中心点在子图内的标注框才保留，跨边界的框裁剪到子图范围
+2. **NMS 去重**: 重叠区域的目标会被多个子图检测到，需按类别分别 NMS
+3. **偏移信息**: 必须保存，推理时用于坐标还原
+4. **小图处理**: 宽高都 <= 1000 的图片直接复制，偏移(0,0)
+5. **数据集隔离**: 先划分原图再分片，确保同一原图的子图不会跨数据集
