@@ -14,6 +14,11 @@
 """
 
 import os
+
+# 禁用代理，避免 Gradio 启动时通过代理访问 localhost
+for var in ["http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"]:
+    os.environ.pop(var, None)
+
 import gradio as gr
 from pathlib import Path
 import matplotlib
