@@ -415,4 +415,5 @@ if __name__ == "__main__":
         server_port=args.port,
         share=args.share,
         prevent_thread_lock=True,
+        allowed_paths=["."],
     )
