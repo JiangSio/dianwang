@@ -33,7 +33,7 @@ import numpy as np
 # 默认路径配置
 PROJECT = "luoshuan"
 DEFAULT_RESULTS_DIR = f"runs/detect/{PROJECT}/train"
-DEFAULT_PREDICT_DIR = f"runs/detect/{PROJECT}/infer"
+DEFAULT_PREDICT_DIR = f"runs/detect/{PROJECT}/infer_custom"
 DEFAULT_GT_DIR = f"data/{PROJECT}/images/test"
 DEFAULT_LABELS_DIR = f"data/{PROJECT}/labels/test"
 
@@ -145,9 +145,17 @@ def get_image_pairs(predict_dir, gt_dir):
     if not gt_path.exists():
         return [], "Ground Truth 目录不存在"
 
-    # 获取预测图片文件名
+    # 获取预测图片文件名 (格式: xxx_result.jpg)
     predict_images = sorted(predict_path.glob("*.jpg")) + sorted(predict_path.glob("*.png"))
-    predict_names = {p.stem: str(p) for p in predict_images}
+    # 去除 _result 后缀来匹配原始文件名
+    predict_names = {}
+    for p in predict_images:
+        stem = p.stem
+        if stem.endswith("_result"):
+            original_name = stem[:-7]  # 去掉 _result
+        else:
+            original_name = stem
+        predict_names[original_name] = str(p)
 
     # 获取 GT 图片文件名 (支持 jpg/png)
     gt_images = sorted(gt_path.glob("*.jpg")) + sorted(gt_path.glob("*.png"))

@@ -8,9 +8,66 @@ YOLOv8 测试/推理脚本
 
 import argparse
 from pathlib import Path
+import shutil
+import cv2
+import numpy as np
 from ultralytics import YOLO
 
-PROJECT="luoshuan"
+PROJECT = "luoshuan"
+
+# 类别颜色映射 (BGR 格式)
+CLASS_COLORS = {
+    0: (0, 255, 0),    # 绿色
+    1: (255, 0, 0),    # 蓝色
+    2: (0, 0, 255),    # 红色
+    3: (255, 255, 0),  # 青色
+    4: (255, 0, 255),  # 品红
+    5: (0, 255, 255),  # 黄色
+    6: (128, 0, 128),  # 紫色
+    7: (255, 165, 0),  # 橙色
+    8: (128, 128, 0),  # 橄榄色
+    9: (0, 128, 128),  # 蓝绿色
+}
+DEFAULT_COLOR = (200, 200, 200)
+
+
+def draw_predictions(img_path, boxes, names, output_path):
+    """在图片上绘制预测框 (与 visualize_ground.py 统一风格)"""
+    img_array = np.fromfile(str(img_path), dtype=np.uint8)
+    img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+    if img is None:
+        return False
+
+    for box in boxes:
+        cls_id = int(box.cls)
+        conf = float(box.conf)
+        cls_name = names.get(cls_id, str(cls_id))
+        x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+
+        color = CLASS_COLORS.get(cls_id, DEFAULT_COLOR)
+
+        # 绘制矩形框
+        cv2.rectangle(img, (x1, y1), (x2, y2), color, 3)
+
+        # 绘制标签背景
+        label = f"{cls_name}: {conf:.2f}"
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 1.0
+        thickness = 2
+        (label_w, label_h), _ = cv2.getTextSize(label, font, font_scale, thickness)
+
+        # 标签位置（在框上方）
+        label_y = y1 - 10 if y1 - 10 > label_h else y1 + label_h
+        cv2.rectangle(img, (x1, label_y - label_h - 5), (x1 + label_w, label_y + 5), color, -1)
+
+        # 绘制标签文字 (黑色)
+        cv2.putText(img, label, (x1, label_y - 5), font, font_scale, (0, 0, 0), thickness)
+
+    # 保存
+    success, encoded_img = cv2.imencode('.jpg', img)
+    if success:
+        encoded_img.tofile(str(output_path))
+    return success
 
 def evaluate(model, data, args):
     """在 test 集上评估模型"""
@@ -64,14 +121,18 @@ def infer(model, source, args):
     print(f"\n模型权重: {args.weights}")
     print(f"推理源: {source}")
 
-    # 执行推理
+    # 创建输出目录
+    output_dir = Path(f"runs/detect/{PROJECT}/infer")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # 执行推理 (不自动保存，手动绘制)
     results = model.predict(
         source=source,
         imgsz=args.imgsz,
         conf=args.conf_thres,
         iou=args.iou_thres,
         device=args.device,
-        save=True,
+        save=False,  # 不自动保存
         save_txt=args.save_txt,
         project=f"{PROJECT}",
         name="infer",
@@ -79,23 +140,28 @@ def infer(model, source, args):
         verbose=True,
     )
 
-    # 打印结果摘要
-    print(f"\n推理完成!")
-    print(f"  处理图片数: {len(results)}")
-
-    # 打印每张图片的检测结果
+    # 手动绘制并保存
+    print(f"\n保存检测结果...")
     for r in results:
-        path = Path(r.path).name
+        path = Path(r.path)
+        output_path = output_dir / f"{path.stem}_result.jpg"
         boxes = r.boxes
         if boxes is not None and len(boxes) > 0:
-            print(f"  {path}: {len(boxes)} 个目标")
+            draw_predictions(path, boxes, model.names, output_path)
+            print(f"  {path.name}: {len(boxes)} 个目标")
             for box in boxes:
                 cls_id = int(box.cls)
                 conf = float(box.conf)
                 cls_name = model.names.get(cls_id, str(cls_id))
                 print(f"    - {cls_name}: {conf:.4f}")
         else:
-            print(f"  {path}: 无目标")
+            # 无目标也保存原图
+            shutil.copy(str(path), str(output_path))
+            print(f"  {path.name}: 无目标")
+
+    print(f"\n推理完成!")
+    print(f"  处理图片数: {len(results)}")
+    print(f"  输出目录: {output_dir}")
 
     return results
 
