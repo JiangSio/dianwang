@@ -16,7 +16,7 @@ import matplotlib.image as mpimg
 # 默认路径配置
 PROJECT = "luoshuan"
 DEFAULT_RESULTS_DIR = f"runs/detect/{PROJECT}/train"
-DEFAULT_PREDICT_DIR = f"runs/predict/{PROJECT}/infer"
+DEFAULT_PREDICT_DIR = f"runs/detect/{PROJECT}/infer"
 
 
 def plot_metrics(results_dir):

@@ -28,7 +28,7 @@ def evaluate(model, data, args):
         imgsz=args.imgsz,
         batch=args.batch,
         device=args.device,
-        project=f"PROJECT",
+        project=f"{PROJECT}",
         name="test",
         verbose=True,
         save_json=True,
@@ -73,7 +73,7 @@ def infer(model, source, args):
         device=args.device,
         save=True,
         save_txt=args.save_txt,
-        project=f"PROJECT",
+        project=f"{PROJECT}",
         name="infer",
         exist_ok=True,
         verbose=True,
@@ -82,7 +82,6 @@ def infer(model, source, args):
     # 打印结果摘要
     print(f"\n推理完成!")
     print(f"  处理图片数: {len(results)}")
-    print(f"  结果保存至: {Path(args.project) / args.name}")
 
     # 打印每张图片的检测结果
     for r in results:
