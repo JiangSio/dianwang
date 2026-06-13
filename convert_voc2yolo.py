@@ -11,15 +11,19 @@ import shutil
 from pathlib import Path
 
 # 类别映射 (VOC class name -> YOLO class id)
-CLASS_MAP = {
+CLASS_MAP_1 = {
     "07010001": 0,
     "07010002": 1,
 }
+CLASS_MAP_2 = {
+    "07011027": 0,
+}
+CLASS_MAP = CLASS_MAP_2
 
 # 路径配置
 BASE_DIR = Path(__file__).parent
-SOURCE_DIR = BASE_DIR / "挂点金具开口销缺失"
-OUTPUT_DIR = BASE_DIR / "data"
+SOURCE_DIR = BASE_DIR /".."/ "法兰盘连接螺栓缺失"
+OUTPUT_DIR = BASE_DIR / "data" / "luoshuan"
 IMAGES_DIR = OUTPUT_DIR / "images"
 LABELS_DIR = OUTPUT_DIR / "labels"
 

@@ -1,0 +1,15 @@
+# YOLOv8 数据集配置文件
+# 路径相对于项目根目录
+
+path: ./data/kaikouxiao
+train: images/train
+val: images/val
+test: images/test
+
+# 类别数量
+nc: 2
+
+# 类别名称 (按 class_id 顺序)
+names:
+  0: "07010001"
+  1: "07010002"

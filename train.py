@@ -8,11 +8,12 @@ import argparse
 from pathlib import Path
 from ultralytics import YOLO
 
+PROJECT = "luoshuan"
 
 # 默认训练参数
 DEFAULT_CONFIG = {
     "model": "yolov8n.pt",
-    "data": "dataset.yaml",
+    "data": f"dataset_{PROJECT}.yaml",
     "epochs": 100,
     "batch": 16,
     "imgsz": 640,
@@ -20,7 +21,7 @@ DEFAULT_CONFIG = {
     "workers": 4,
     "lr0": 0.01,
     "patience": 50,
-    "project": "runs/detect",
+    "project": f"{PROJECT}",
     "name": "train",
     "optimizer": "adamw",
     "close_mosaic": 10,
@@ -73,16 +74,6 @@ def train(args):
     # 开始训练
     print(f"\n开始训练...")
     results = model.train(**train_args)
-
-    # 保存最佳权重
-    weights_dir = Path("weights")
-    weights_dir.mkdir(exist_ok=True)
-
-    best_pt = Path(args.project) / args.name / "weights" / "best.pt"
-    if best_pt.exists():
-        import shutil
-        shutil.copy2(best_pt, weights_dir / "best.pt")
-        print(f"\n最佳权重已保存到: {weights_dir / 'best.pt'}")
 
     print(f"\n训练完成!")
     print(f"  结果目录: {Path(args.project) / args.name}")

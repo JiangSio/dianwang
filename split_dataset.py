@@ -13,14 +13,15 @@ from pathlib import Path
 
 # 路径配置
 BASE_DIR = Path(__file__).parent
-DATA_DIR = BASE_DIR / "data"
+PROJECT = "luoshuan"
+DATA_DIR = BASE_DIR / "data" / PROJECT
 IMAGES_DIR = DATA_DIR / "images"
 LABELS_DIR = DATA_DIR / "labels"
 
 # 划分比例
-TRAIN_RATIO = 0.70
-VAL_RATIO = 0.15
-TEST_RATIO = 0.15
+TRAIN_RATIO = 0.90
+VAL_RATIO = 0.05
+TEST_RATIO = 0.05
 
 # 随机种子 (保证可复现)
 RANDOM_SEED = 42

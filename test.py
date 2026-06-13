@@ -10,6 +10,7 @@ import argparse
 from pathlib import Path
 from ultralytics import YOLO
 
+PROJECT="luoshuan"
 
 def evaluate(model, data, args):
     """在 test 集上评估模型"""
@@ -27,6 +28,8 @@ def evaluate(model, data, args):
         imgsz=args.imgsz,
         batch=args.batch,
         device=args.device,
+        project=f"PROJECT",
+        name="test",
         verbose=True,
         save_json=True,
         save_hybrid=False,
@@ -70,8 +73,8 @@ def infer(model, source, args):
         device=args.device,
         save=True,
         save_txt=args.save_txt,
-        project=args.project,
-        name=args.name,
+        project=f"PROJECT",
+        name="infer",
         exist_ok=True,
         verbose=True,
     )
@@ -104,11 +107,11 @@ def parse_args():
     # 通用参数
     parser.add_argument("--mode", type=str, choices=["eval", "infer"],
                         default="eval", help="运行模式: eval(评估) 或 infer(推理)")
-    parser.add_argument("--weights", type=str, default="weights/best.pt",
+    parser.add_argument("--weights", type=str, default=f"runs/detect/{PROJECT}/train/weights/best.pt",
                         help="模型权重路径")
-    parser.add_argument("--data", type=str, default="dataset.yaml",
+    parser.add_argument("--data", type=str, default=f"dataset_{PROJECT}.yaml",
                         help="数据集配置文件 (仅 eval 模式)")
-    parser.add_argument("--source", type=str, default="data/images/test",
+    parser.add_argument("--source", type=str, default=f"data/{PROJECT}/images/test",
                         help="推理源: 图片/文件夹路径 (仅 infer 模式)")
     parser.add_argument("--imgsz", type=int, default=640,
                         help="输入图像尺寸")
@@ -124,10 +127,6 @@ def parse_args():
                         help="NMS IoU 阈值 (仅 infer 模式)")
     parser.add_argument("--save_txt", action="store_true",
                         help="保存检测结果为 TXT (仅 infer 模式)")
-    parser.add_argument("--project", type=str, default="runs/predict",
-                        help="推理结果保存目录")
-    parser.add_argument("--name", type=str, default="exp",
-                        help="推理实验名称")
 
     return parser.parse_args()
 
