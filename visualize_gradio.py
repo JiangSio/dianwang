@@ -33,7 +33,7 @@ import numpy as np
 # 默认路径配置
 PROJECT = "luoshuan"
 DEFAULT_RESULTS_DIR = f"runs/detect/{PROJECT}/train"
-DEFAULT_PREDICT_DIR = f"runs/detect/{PROJECT}/infer_custom"
+DEFAULT_PREDICT_DIR = f"runs/detect/{PROJECT}/infer"
 DEFAULT_GT_DIR = f"data/{PROJECT}/images/test"
 DEFAULT_LABELS_DIR = f"data/{PROJECT}/labels/test"
 
@@ -382,7 +382,7 @@ def create_app():
                     predict_dir_input = gr.Textbox(
                         label="推理结果目录",
                         value=DEFAULT_PREDICT_DIR,
-                        placeholder="runs/predict/luoshuan/infer"
+                        placeholder="runs/detect/luoshuan/infer"
                     )
                     refresh_detect_btn = gr.Button("刷新", variant="primary")
 
@@ -431,7 +431,7 @@ def create_app():
                         predict_dir_cmp = gr.Textbox(
                             label="预测结果目录",
                             value=DEFAULT_PREDICT_DIR,
-                            placeholder="runs/predict/luoshuan/infer"
+                            placeholder="runs/detect/luoshuan/infer"
                         )
                     with gr.Column():
                         gt_dir_cmp = gr.Textbox(
