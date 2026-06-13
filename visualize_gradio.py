@@ -260,9 +260,9 @@ def draw_pred_image(img_path, predict_dir, image_name):
     if img is None:
         return None
 
-    # 尝试读取 YOLO 预测结果 TXT
+    # 尝试读取 YOLO 预测结果 TXT (在 labels/ 子目录下)
     stem = Path(image_name).stem
-    pred_txt = Path(predict_dir) / f"{stem}.txt"
+    pred_txt = Path(predict_dir) / "labels" / f"{stem}.txt"
     if pred_txt.exists():
         h, w = img.shape[:2]
         bboxes = []
@@ -305,8 +305,11 @@ def display_comparison(predict_dir, gt_dir, labels_dir, image_index):
     idx = int(image_index) % len(pairs)
     pair = pairs[idx]
 
-    # 加载预测图片 (统一绘制风格)
-    pred_img = draw_pred_image(pair["gt"], predict_dir, pair["name"])
+    # 加载预测图片 (YOLO 输出已自带检测框)
+    pred_array = np.fromfile(pair["predict"], dtype=np.uint8)
+    pred_img = cv2.imdecode(pred_array, cv2.IMREAD_COLOR)
+    if pred_img is not None:
+        pred_img = cv2.cvtColor(pred_img, cv2.COLOR_BGR2RGB)
 
     # 加载 GT 图片 (统一绘制风格)
     gt_img = draw_gt_image(pair["gt"], labels_dir)
