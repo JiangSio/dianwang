@@ -33,7 +33,7 @@ import numpy as np
 # 默认路径配置
 PROJECT = "luoshuan"
 DEFAULT_RESULTS_DIR = f"runs/detect/{PROJECT}/train"
-DEFAULT_PREDICT_DIR = f"runs/predict/{PROJECT}/infer"
+DEFAULT_PREDICT_DIR = f"runs/detect/{PROJECT}/infer"
 DEFAULT_GT_DIR = "法兰盘连接螺栓缺失"
 
 
