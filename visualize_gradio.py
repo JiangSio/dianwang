@@ -35,6 +35,7 @@ PROJECT = "luoshuan"
 DEFAULT_RESULTS_DIR = f"runs/detect/{PROJECT}/train"
 DEFAULT_PREDICT_DIR = f"runs/detect/{PROJECT}/infer"
 DEFAULT_GT_DIR = f"data/{PROJECT}/images/test"
+DEFAULT_LABELS_DIR = f"data/{PROJECT}/labels/test"
 
 
 # ==================== 训练指标相关 ====================
@@ -159,33 +160,42 @@ def get_image_pairs(predict_dir, gt_dir):
     return pairs, f"找到 {len(pairs)} 对匹配图片"
 
 
-def draw_gt_image(img_path, xml_dir=None):
+def draw_gt_image(img_path, labels_dir=None, class_names=None):
     """绘制带标注的 GT 图片"""
     img_array = np.fromfile(str(img_path), dtype=np.uint8)
     img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
     if img is None:
         return None
 
-    # 如果有 XML 标注，绘制 GT 框
-    if xml_dir:
+    # 如果有 YOLO TXT 标注，绘制 GT 框
+    if labels_dir:
         stem = Path(img_path).stem
-        xml_path = Path(xml_dir) / f"{stem}.xml"
-        if xml_path.exists():
+        label_path = Path(labels_dir) / f"{stem}.txt"
+        if label_path.exists():
+            h, w = img.shape[:2]
             try:
-                tree = ET.parse(xml_path)
-                root = tree.getroot()
-                for obj in root.findall("object"):
-                    bndbox = obj.find("bndbox")
-                    if bndbox is not None:
-                        xmin = int(bndbox.find("xmin").text)
-                        ymin = int(bndbox.find("ymin").text)
-                        xmax = int(bndbox.find("xmax").text)
-                        ymax = int(bndbox.find("ymax").text)
-                        class_name = obj.find("name").text
+                with open(label_path, "r") as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if len(parts) < 5:
+                            continue
+                        cls_id = int(parts[0])
+                        x_center = float(parts[1])
+                        y_center = float(parts[2])
+                        bw = float(parts[3])
+                        bh = float(parts[4])
+
+                        # 转换为绝对坐标
+                        xmin = int((x_center - bw / 2) * w)
+                        ymin = int((y_center - bh / 2) * h)
+                        xmax = int((x_center + bw / 2) * w)
+                        ymax = int((y_center + bh / 2) * h)
+
+                        cls_name = class_names.get(cls_id, str(cls_id)) if class_names else str(cls_id)
 
                         # 绿色框表示 GT
                         cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 255, 0), 3)
-                        cv2.putText(img, f"GT: {class_name}", (xmin, ymin - 10),
+                        cv2.putText(img, f"GT: {cls_name}", (xmin, ymin - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
             except Exception:
                 pass
@@ -195,7 +205,7 @@ def draw_gt_image(img_path, xml_dir=None):
     return img_rgb
 
 
-def display_comparison(predict_dir, gt_dir, xml_dir, image_index):
+def display_comparison(predict_dir, gt_dir, labels_dir, image_index):
     """同步显示预测结果和 GT"""
     pairs, status = get_image_pairs(predict_dir, gt_dir)
 
@@ -212,7 +222,8 @@ def display_comparison(predict_dir, gt_dir, xml_dir, image_index):
         pred_img = cv2.cvtColor(pred_img, cv2.COLOR_BGR2RGB)
 
     # 加载 GT 图片 (带标注)
-    gt_img = draw_gt_image(pair["gt"], xml_dir)
+    class_names = {0: "07011027"}
+    gt_img = draw_gt_image(pair["gt"], labels_dir, class_names)
 
     info = f"图片 {idx + 1}/{len(pairs)} | 文件: {pair['name']}"
     return pred_img, gt_img, info, len(pairs) - 1
@@ -332,10 +343,10 @@ def create_app():
                             placeholder="法兰盘连接螺栓缺失"
                         )
                     with gr.Column():
-                        xml_dir_cmp = gr.Textbox(
-                            label="XML 标注目录 (可选)",
-                            value=DEFAULT_GT_DIR,
-                            placeholder="法兰盘连接螺栓缺失"
+                        labels_dir_cmp = gr.Textbox(
+                            label="YOLO 标注目录",
+                            value=DEFAULT_LABELS_DIR,
+                            placeholder="data/luoshuan/labels/test"
                         )
 
                 refresh_cmp_btn = gr.Button("加载对比数据", variant="primary")
@@ -357,25 +368,25 @@ def create_app():
                     outputs=[cmp_slider]
                 ).then(
                     fn=display_comparison,
-                    inputs=[predict_dir_cmp, gt_dir_cmp, xml_dir_cmp, cmp_slider],
+                    inputs=[predict_dir_cmp, gt_dir_cmp, labels_dir_cmp, cmp_slider],
                     outputs=[pred_image, gt_image, cmp_status, cmp_slider]
                 )
 
                 cmp_slider.change(
                     fn=display_comparison,
-                    inputs=[predict_dir_cmp, gt_dir_cmp, xml_dir_cmp, cmp_slider],
+                    inputs=[predict_dir_cmp, gt_dir_cmp, labels_dir_cmp, cmp_slider],
                     outputs=[pred_image, gt_image, cmp_status, cmp_slider]
                 )
 
                 prev_cmp_btn.click(
-                    fn=lambda pd, gd, xd, i: display_comparison(pd, gd, xd, max(0, int(i) - 1)),
-                    inputs=[predict_dir_cmp, gt_dir_cmp, xml_dir_cmp, cmp_slider],
+                    fn=lambda pd, gd, ld, i: display_comparison(pd, gd, ld, max(0, int(i) - 1)),
+                    inputs=[predict_dir_cmp, gt_dir_cmp, labels_dir_cmp, cmp_slider],
                     outputs=[pred_image, gt_image, cmp_status, cmp_slider]
                 )
 
                 next_cmp_btn.click(
-                    fn=lambda pd, gd, xd, i, mx: display_comparison(pd, gd, xd, (int(i) + 1) % (int(mx) + 1)),
-                    inputs=[predict_dir_cmp, gt_dir_cmp, xml_dir_cmp, cmp_slider, cmp_slider],
+                    fn=lambda pd, gd, ld, i, mx: display_comparison(pd, gd, ld, (int(i) + 1) % (int(mx) + 1)),
+                    inputs=[predict_dir_cmp, gt_dir_cmp, labels_dir_cmp, cmp_slider, cmp_slider],
                     outputs=[pred_image, gt_image, cmp_status, cmp_slider]
                 )
 
