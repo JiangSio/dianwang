@@ -117,7 +117,7 @@ def update_detection_slider(predict_dir):
     images = get_detection_images(predict_dir)
     if images:
         return gr.Slider(minimum=0, maximum=len(images) - 1, value=0, step=1)
-    return gr.Slider(minimum=0, maximum=0, value=0, step=1)
+    return gr.Slider(minimum=0, maximum=1, value=0, step=1)
 
 
 # ==================== 预测 vs Ground Truth 对比 ====================
@@ -218,7 +218,7 @@ def update_comparison_slider(predict_dir, gt_dir):
     pairs, status = get_image_pairs(predict_dir, gt_dir)
     if pairs:
         return gr.Slider(minimum=0, maximum=len(pairs) - 1, value=0, step=1)
-    return gr.Slider(minimum=0, maximum=0, value=0, step=1)
+    return gr.Slider(minimum=0, maximum=1, value=0, step=1)
 
 
 # ==================== Gradio App ====================
