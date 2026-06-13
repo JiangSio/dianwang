@@ -61,9 +61,12 @@ def clip_bbox(xmin, ymin, xmax, ymax, w, h):
     return xmin, ymin, xmax, ymax
 
 
-def split_image_and_labels(img_path, label_path, cut_images_dir, cut_labels_dir, tile_mapping):
+def split_image_and_labels(img_path, label_path, cut_images_dir, cut_labels_dir, tile_mapping, keep_all_tiles=False):
     """
     对单张图片执行分片
+    
+    Args:
+        keep_all_tiles: 是否保留所有子图（包括无标注的），val/test 应设为 True
     
     Returns: (子图数量, 标注框总数)
     """
@@ -168,7 +171,9 @@ def split_image_and_labels(img_path, label_path, cut_images_dir, cut_labels_dir,
                 tile_boxes.append((cls_id, sub_xc, sub_yc, sub_w, sub_h))
 
             if not tile_boxes:
-                continue  # 无标注的子图跳过
+                if not keep_all_tiles:
+                    continue  # train 跳过无标注子图
+                # val/test 保留无标注子图，创建空标注文件
 
             # 保存子图
             tile_name = f"{stem}_tile_{row}_{col}.jpg"
@@ -190,6 +195,7 @@ def split_image_and_labels(img_path, label_path, cut_images_dir, cut_labels_dir,
             with open(out_label, "w") as f:
                 if lines:
                     f.write("\n".join(lines) + "\n")
+                # keep_all_tiles=True 时，无标注也创建空文件
 
             # 记录映射
             tile_mapping[tile_name] = {
@@ -296,8 +302,12 @@ def split_dataset():
             stem = img_path.stem
             label_path = split_labels_dir / f"{stem}.txt"
 
+            # val/test 保留所有子图（包括无标注的）
+            keep_all = split_name in ["val", "test"]
+
             tc, to = split_image_and_labels(
-                img_path, label_path, cut_images_dir, cut_labels_dir, tile_mapping
+                img_path, label_path, cut_images_dir, cut_labels_dir, tile_mapping,
+                keep_all_tiles=keep_all
             )
             cut_count += tc
             cut_objects += to
