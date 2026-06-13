@@ -516,6 +516,6 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         server_port=args.port,
         share=args.share,
-        prevent_thread_lock=True,
+        prevent_thread_lock=False,
         allowed_paths=["."],
     )
