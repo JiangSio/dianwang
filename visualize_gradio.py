@@ -105,17 +105,24 @@ def get_detection_images(predict_dir):
     return [str(p) for p in images]
 
 
+def get_detection_max(predict_dir):
+    """获取检测结果图片最大索引"""
+    images = get_detection_images(predict_dir)
+    return len(images) - 1 if images else 0
+
+
 def display_detection(predict_dir, image_index):
     """显示选定的检测结果图片"""
     if not predict_dir or not Path(predict_dir).exists():
-        return None, "推理结果目录不存在", 0
+        return None, "推理结果目录不存在", gr.Slider(minimum=0, maximum=1, value=0, step=1)
 
     images = get_detection_images(predict_dir)
     if not images:
-        return None, "未找到推理结果图片", 0
+        return None, "未找到推理结果图片", gr.Slider(minimum=0, maximum=1, value=0, step=1)
 
+    max_idx = len(images) - 1
     idx = int(image_index) % len(images)
-    return images[idx], f"图片 {idx + 1}/{len(images)}", len(images) - 1
+    return images[idx], f"图片 {idx + 1}/{len(images)}", gr.Slider(minimum=0, maximum=max_idx, value=idx, step=1)
 
 
 def update_detection_slider(predict_dir):
@@ -160,6 +167,49 @@ def get_image_pairs(predict_dir, gt_dir):
     return pairs, f"找到 {len(pairs)} 对匹配图片"
 
 
+# 类别颜色映射 (BGR 格式)
+CLASS_COLORS = {
+    0: (0, 255, 0),    # 绿色
+    1: (255, 0, 0),    # 蓝色
+    2: (0, 0, 255),    # 红色
+    3: (255, 255, 0),  # 青色
+    4: (255, 0, 255),  # 品红
+    5: (0, 255, 255),  # 黄色
+    6: (128, 0, 128),  # 紫色
+    7: (255, 165, 0),  # 橙色
+    8: (128, 128, 0),  # 橄榄色
+    9: (0, 128, 128),  # 蓝绿色
+}
+
+# 默认颜色 (超出预定义类别时使用)
+DEFAULT_COLOR = (200, 200, 200)  # 灰色
+
+
+def draw_bboxes(img, bboxes, label_prefix=""):
+    """在图片上绘制标注框 (统一风格: 框 + 标签背景 + 黑色文字)"""
+    for cls_id, xmin, ymin, xmax, ymax in bboxes:
+        color = CLASS_COLORS.get(cls_id, (0, 255, 0))
+
+        # 绘制矩形框
+        cv2.rectangle(img, (xmin, ymin), (xmax, ymax), color, 3)
+
+        # 绘制标签背景
+        label = f"{label_prefix}{cls_id}"
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.8
+        thickness = 2
+        (label_w, label_h), _ = cv2.getTextSize(label, font, font_scale, thickness)
+
+        # 标签位置（在框上方）
+        label_y = ymin - 10 if ymin - 10 > label_h else ymin + label_h
+        cv2.rectangle(img, (xmin, label_y - label_h - 5), (xmin + label_w, label_y + 5), color, -1)
+
+        # 绘制标签文字 (黑色)
+        cv2.putText(img, label, (xmin, label_y - 5), font, font_scale, (0, 0, 0), thickness)
+
+    return img
+
+
 def draw_gt_image(img_path, labels_dir=None, class_names=None):
     """绘制带标注的 GT 图片"""
     img_array = np.fromfile(str(img_path), dtype=np.uint8)
@@ -173,6 +223,7 @@ def draw_gt_image(img_path, labels_dir=None, class_names=None):
         label_path = Path(labels_dir) / f"{stem}.txt"
         if label_path.exists():
             h, w = img.shape[:2]
+            bboxes = []
             try:
                 with open(label_path, "r") as f:
                     for line in f:
@@ -191,16 +242,54 @@ def draw_gt_image(img_path, labels_dir=None, class_names=None):
                         xmax = int((x_center + bw / 2) * w)
                         ymax = int((y_center + bh / 2) * h)
 
-                        cls_name = class_names.get(cls_id, str(cls_id)) if class_names else str(cls_id)
+                        bboxes.append((cls_id, xmin, ymin, xmax, ymax))
 
-                        # 绿色框表示 GT
-                        cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 255, 0), 3)
-                        cv2.putText(img, f"GT: {cls_name}", (xmin, ymin - 10),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                img = draw_bboxes(img, bboxes, label_prefix="GT:")
             except Exception:
                 pass
 
     # 转回 RGB 格式 (cv2 是 BGR)
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    return img_rgb
+
+
+def draw_pred_image(img_path, predict_dir, image_name):
+    """绘制带预测框的图片 (统一风格)"""
+    img_array = np.fromfile(str(img_path), dtype=np.uint8)
+    img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+    if img is None:
+        return None
+
+    # 尝试读取 YOLO 预测结果 TXT
+    stem = Path(image_name).stem
+    pred_txt = Path(predict_dir) / f"{stem}.txt"
+    if pred_txt.exists():
+        h, w = img.shape[:2]
+        bboxes = []
+        try:
+            with open(pred_txt, "r") as f:
+                for line in f:
+                    parts = line.strip().split()
+                    if len(parts) < 6:
+                        continue
+                    cls_id = int(parts[0])
+                    x_center = float(parts[1])
+                    y_center = float(parts[2])
+                    bw = float(parts[3])
+                    bh = float(parts[4])
+                    conf = float(parts[5])
+
+                    xmin = int((x_center - bw / 2) * w)
+                    ymin = int((y_center - bh / 2) * h)
+                    xmax = int((x_center + bw / 2) * w)
+                    ymax = int((y_center + bh / 2) * h)
+
+                    bboxes.append((cls_id, xmin, ymin, xmax, ymax))
+
+            img = draw_bboxes(img, bboxes, label_prefix="Pred:")
+        except Exception:
+            pass
+
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img_rgb
 
@@ -210,23 +299,20 @@ def display_comparison(predict_dir, gt_dir, labels_dir, image_index):
     pairs, status = get_image_pairs(predict_dir, gt_dir)
 
     if not pairs:
-        return None, None, status, 0
+        return None, None, status, gr.Slider(minimum=0, maximum=1, value=0, step=1)
 
+    max_idx = len(pairs) - 1
     idx = int(image_index) % len(pairs)
     pair = pairs[idx]
 
-    # 加载预测图片
-    pred_array = np.fromfile(pair["predict"], dtype=np.uint8)
-    pred_img = cv2.imdecode(pred_array, cv2.IMREAD_COLOR)
-    if pred_img is not None:
-        pred_img = cv2.cvtColor(pred_img, cv2.COLOR_BGR2RGB)
+    # 加载预测图片 (统一绘制风格)
+    pred_img = draw_pred_image(pair["gt"], predict_dir, pair["name"])
 
-    # 加载 GT 图片 (带标注)
-    class_names = {0: "07011027"}
-    gt_img = draw_gt_image(pair["gt"], labels_dir, class_names)
+    # 加载 GT 图片 (统一绘制风格)
+    gt_img = draw_gt_image(pair["gt"], labels_dir)
 
     info = f"图片 {idx + 1}/{len(pairs)} | 文件: {pair['name']}"
-    return pred_img, gt_img, info, len(pairs) - 1
+    return pred_img, gt_img, info, gr.Slider(minimum=0, maximum=max_idx, value=idx, step=1)
 
 
 def update_comparison_slider(predict_dir, gt_dir):
@@ -320,8 +406,8 @@ def create_app():
                 )
 
                 next_btn.click(
-                    fn=lambda d, i, mx: display_detection(d, (int(i) + 1) % (int(mx) + 1)),
-                    inputs=[predict_dir_input, detect_slider, detect_slider],
+                    fn=lambda d, i: display_detection(d, int(i) + 1),
+                    inputs=[predict_dir_input, detect_slider],
                     outputs=[detect_image, detect_status, detect_slider]
                 )
 
@@ -385,8 +471,8 @@ def create_app():
                 )
 
                 next_cmp_btn.click(
-                    fn=lambda pd, gd, ld, i, mx: display_comparison(pd, gd, ld, (int(i) + 1) % (int(mx) + 1)),
-                    inputs=[predict_dir_cmp, gt_dir_cmp, labels_dir_cmp, cmp_slider, cmp_slider],
+                    fn=lambda pd, gd, ld, i: display_comparison(pd, gd, ld, int(i) + 1),
+                    inputs=[predict_dir_cmp, gt_dir_cmp, labels_dir_cmp, cmp_slider],
                     outputs=[pred_image, gt_image, cmp_status, cmp_slider]
                 )
 
