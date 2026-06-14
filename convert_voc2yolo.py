@@ -22,7 +22,7 @@ CLASS_MAP = CLASS_MAP_2
 
 # 路径配置
 BASE_DIR = Path(__file__).parent
-SOURCE_DIR = BASE_DIR / "法兰盘连接螺栓缺失"
+SOURCE_DIR = BASE_DIR / ".." /"法兰盘连接螺栓缺失"
 OUTPUT_DIR = BASE_DIR / "data" / "luoshuan"
 IMAGES_DIR = OUTPUT_DIR / "images"
 LABELS_DIR = OUTPUT_DIR / "labels"

@@ -303,7 +303,7 @@ def split_dataset():
             label_path = split_labels_dir / f"{stem}.txt"
 
             # val/test 保留所有子图（包括无标注的）
-            keep_all = split_name in ["val", "test"]
+            keep_all = split_name in ["test"]
 
             tc, to = split_image_and_labels(
                 img_path, label_path, cut_images_dir, cut_labels_dir, tile_mapping,
