@@ -8,7 +8,7 @@ import argparse
 from pathlib import Path
 from ultralytics import YOLO
 
-PROJECT = "luoshuan"
+PROJECT = "kaikouxiao"
 
 # 默认训练参数
 DEFAULT_CONFIG = {

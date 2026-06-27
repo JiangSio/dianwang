@@ -18,12 +18,12 @@ CLASS_MAP_1 = {
 CLASS_MAP_2 = {
     "07011027": 0,
 }
-CLASS_MAP = CLASS_MAP_2
+CLASS_MAP = CLASS_MAP_1
 
 # 路径配置
 BASE_DIR = Path(__file__).parent
-SOURCE_DIR = BASE_DIR / ".." /"法兰盘连接螺栓缺失"
-OUTPUT_DIR = BASE_DIR / "data" / "luoshuan"
+SOURCE_DIR = BASE_DIR / ".." /"挂点金具开口销缺失"
+OUTPUT_DIR = BASE_DIR / "data" / "kaikouxiao"
 IMAGES_DIR = OUTPUT_DIR / "images"
 LABELS_DIR = OUTPUT_DIR / "labels"
 

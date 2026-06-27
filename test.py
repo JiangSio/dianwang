@@ -416,6 +416,20 @@ def main():
     elif args.mode == "infer":
         infer(model, args.source, args)
 
+def demo_model_init(model_path):
+    weights_path = Path(model_path)
+
+    model = YOLO(str(weights_path))
+    """对图片/文件夹进行推理（分片模式）"""
+    print("=" * 60)
+    print("YOLOv8 推理 (分片模式)")
+    print("=" * 60)
+    print(f"分片配置: TILE_SIZE={TILE_SIZE}, OVERLAP={OVERLAP}")
+
+    print(f"\n模型权重: {weights_path}")
+    return model
+
+
 def demo_tile_predict_img(model, img, args):
     """
     分片预测：对大图切分预测，小图直接预测
@@ -509,17 +523,9 @@ def demo_tile_predict_img(model, img, args):
             final_boxes.append(cls_boxes[idx])
 
     return final_boxes
-def demo_infer(model_path,test_img):
-    weights_path = Path(model_path)
 
-    model = YOLO(str(weights_path))
-    """对图片/文件夹进行推理（分片模式）"""
-    print("=" * 60)
-    print("YOLOv8 推理 (分片模式)")
-    print("=" * 60)
-    print(f"分片配置: TILE_SIZE={TILE_SIZE}, OVERLAP={OVERLAP}")
-
-    print(f"\n模型权重: {weights_path}")
+def demo_infer(model,test_img):
+    
     args = parse_args()
     all_boxes = demo_tile_predict_img(model, test_img, args)
     print(all_boxes)

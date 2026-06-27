@@ -19,7 +19,7 @@ from pathlib import Path
 
 # 路径配置
 BASE_DIR = Path(__file__).parent
-PROJECT = "luoshuan"
+PROJECT = "kaikouxiao"
 DATA_DIR = BASE_DIR / "data" / PROJECT
 IMAGES_DIR = DATA_DIR / "images"
 LABELS_DIR = DATA_DIR / "labels"
