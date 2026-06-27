@@ -17,10 +17,10 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-PROJECT = "luoshuan"
+PROJECT = "all"
 
 # 分片配置（与训练一致）
-TILE_SIZE = 1000      # 分片尺寸
+TILE_SIZE = 1800      # 分片尺寸
 OVERLAP = 200         # 重叠像素
 
 # 类别颜色映射 (BGR 格式)

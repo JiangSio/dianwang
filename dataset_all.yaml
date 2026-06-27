@@ -1,0 +1,16 @@
+# YOLOv8 数据集配置文件
+# 路径相对于项目根目录
+
+path: ./data/all
+train: images/train_cut
+val: images/val_cut
+test: images/test_cut
+
+# 类别数量
+nc: 3
+
+# 类别名称 (按 class_id 顺序)
+names:
+  0: "07010001"
+  1: "07010002"
+  2: "07011027"

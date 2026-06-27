@@ -19,7 +19,7 @@ from pathlib import Path
 
 # 路径配置
 BASE_DIR = Path(__file__).parent
-PROJECT = "kaikouxiao"
+PROJECT = "all"
 DATA_DIR = BASE_DIR / "data" / PROJECT
 IMAGES_DIR = DATA_DIR / "images"
 LABELS_DIR = DATA_DIR / "labels"
@@ -31,7 +31,7 @@ VAL_RATIO = 0.05
 TEST_RATIO = 0.05
 
 # 分片配置
-TILE_SIZE = 1000      # 分片尺寸
+TILE_SIZE = 1800      # 分片尺寸
 OVERLAP = 200         # 重叠像素
 
 # 随机种子
