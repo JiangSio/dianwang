@@ -416,6 +416,116 @@ def main():
     elif args.mode == "infer":
         infer(model, args.source, args)
 
+def demo_tile_predict_img(model, img, args):
+    """
+    分片预测：对大图切分预测，小图直接预测
+    
+    Returns:
+        all_boxes: 列表，每个元素为 (x1, y1, x2, y2, cls_id, conf)
+    """
+    if img is None:
+        print(f"  [错误] 无法读取图片: {img}")
+        return []
+
+    img_h, img_w = img.shape[:2]
+
+    # 判断是否需要分片
+    if img_w <= TILE_SIZE and img_h <= TILE_SIZE:
+        # 小图，直接预测
+        results = model.predict(
+            source=img,
+            imgsz=args.imgsz,
+            conf=args.conf_thres,
+            iou=args.iou_thres,
+            device=args.device,
+            verbose=False,
+        )
+        if results and results[0].boxes is not None and len(results[0].boxes) > 0:
+            boxes = results[0].boxes
+            all_boxes = []
+            for i in range(len(boxes)):
+                x1, y1, x2, y2 = boxes.xyxy[i].cpu().numpy()
+                cls_id = int(boxes.cls[i].cpu().numpy())
+                conf = float(boxes.conf[i].cpu().numpy())
+                all_boxes.append((x1, y1, x2, y2, cls_id, conf))
+            return all_boxes
+        return []
+
+    # 大图，分片预测
+    x_offsets = compute_tile_offsets(img_w, TILE_SIZE, OVERLAP)
+    y_offsets = compute_tile_offsets(img_h, TILE_SIZE, OVERLAP)
+
+    all_boxes = []  # 收集所有子图的预测框（原图坐标）
+
+    for row, y_off in enumerate(y_offsets):
+        for col, x_off in enumerate(x_offsets):
+            tile_x1 = x_off
+            tile_y1 = y_off
+            tile_x2 = min(x_off + TILE_SIZE, img_w)
+            tile_y2 = min(y_off + TILE_SIZE, img_h)
+
+            # 裁剪子图
+            tile_img = img[tile_y1:tile_y2, tile_x1:tile_x2]
+
+            # 对子图进行预测
+            tile_results = model.predict(
+                source=tile_img,
+                imgsz=args.imgsz,
+                conf=args.conf_thres,
+                iou=args.iou_thres,
+                device=args.device,
+                verbose=False,
+            )
+
+            if tile_results and tile_results[0].boxes is not None and len(tile_results[0].boxes) > 0:
+                boxes = tile_results[0].boxes
+                for i in range(len(boxes)):
+                    sx1, sy1, sx2, sy2 = boxes.xyxy[i].cpu().numpy()
+                    cls_id = int(boxes.cls[i].cpu().numpy())
+                    conf = float(boxes.conf[i].cpu().numpy())
+
+                    # 转换回原图坐标
+                    orig_x1 = sx1 + tile_x1
+                    orig_y1 = sy1 + tile_y1
+                    orig_x2 = sx2 + tile_x1
+                    orig_y2 = sy2 + tile_y1
+
+                    all_boxes.append((orig_x1, orig_y1, orig_x2, orig_y2, cls_id, conf))
+
+    # NMS 去重（重叠区域的同一目标可能被多个子图检测到）
+    if len(all_boxes) == 0:
+        return []
+
+    # 按类别分别做 NMS
+    final_boxes = []
+    unique_classes = set(b[4] for b in all_boxes)
+    for cls_id in unique_classes:
+        cls_boxes = [b for b in all_boxes if b[4] == cls_id]
+        boxes_arr = np.array([[b[0], b[1], b[2], b[3]] for b in cls_boxes])
+        scores_arr = np.array([b[5] for b in cls_boxes])
+
+        keep = nms(boxes_arr, scores_arr, args.iou_thres)
+        for idx in keep:
+            final_boxes.append(cls_boxes[idx])
+
+    return final_boxes
+def demo_infer(model_path,test_img):
+    weights_path = Path(model_path)
+
+    model = YOLO(str(weights_path))
+    """对图片/文件夹进行推理（分片模式）"""
+    print("=" * 60)
+    print("YOLOv8 推理 (分片模式)")
+    print("=" * 60)
+    print(f"分片配置: TILE_SIZE={TILE_SIZE}, OVERLAP={OVERLAP}")
+
+    print(f"\n模型权重: {weights_path}")
+    args = parse_args()
+    all_boxes = demo_tile_predict_img(model, test_img, args)
+    print(all_boxes)
+    return all_boxes
+
+        
 
 if __name__ == "__main__":
     main()
